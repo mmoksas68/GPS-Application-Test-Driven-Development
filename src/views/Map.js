@@ -1,14 +1,9 @@
 import React from 'react';
 import '../styles/Map.css'
-
 import {
-    FullscreenControl,
-    GeolocationControl, GeoObject,
+    GeoObject,
     Map, Placemark,
-    RouteButton,
-    TypeSelector,
     YMaps,
-    ZoomControl
 } from "react-yandex-maps";
 import {nearestCity} from "../utils/APIUtils";
 
@@ -20,6 +15,7 @@ class MyMap extends React.Component{
         this.getLocation = this.getLocation.bind(this);
         this.toggleEarthCenter = this.toggleEarthCenter.bind(this);
         this.toggleNearest = this.toggleNearest.bind(this);
+        this.updateNearest = this.updateNearest.bind(this);
         this.handleChange = this.handleChange.bind(this);
         this.toggleLocation = this.toggleLocation.bind(this);
     }
@@ -47,18 +43,30 @@ class MyMap extends React.Component{
         this.getLocation();
     }
 
+    componentWillUnmount() {
+        clearInterval(this.timerID);
+    }
+
+    updateNearest(){
+        const nearest = nearestCity(this.state.lat, this.state.lng);
+        nearest.then((result) => {
+            console.log(result.data[0].latitude + " " + result.data[0].longitude);
+            this.setState({nlat: result.data[0].latitude, nlng: result.data[0].longitude})
+        }).catch((error) => {
+            console.log(error);
+        });
+    }
+
     toggleNearest(){
         if (!this.state.isNearestToggled){
-            const nearest = nearestCity(this.state.lat, this.state.lng);
-            nearest.then((result) => {
-                console.log(result.data[0].latitude + " " + result.data[0].longitude);
-                this.setState({nlat: result.data[0].latitude, nlng: result.data[0].longitude, zoom: 10})
-            }).catch((error) => {
-                console.log(error);
-            });
+            this.setState({zoom: 10})
+            /*this.timerID = setInterval(
+                () => this.updateNearest(),
+                15000
+            );*/
         }else{
-            console.log("sa")
             this.setState({zoom: 5});
+           // clearInterval(this.timerID);
         }
 
         this.setState(prevState => ({
@@ -86,9 +94,8 @@ class MyMap extends React.Component{
         this.setState({[event.target.name]: event.target.value})
     }
 
-
-
     render () {
+
         return (
             <div>
                 <div className="row justify-content-start">
@@ -134,20 +141,20 @@ class MyMap extends React.Component{
                 <div className="row">
                     <div className="col">
                         <YMaps  query={{ lang: 'en_RU' }}>
-                            <Map state={{ center: [this.state.lat, this.state.lng], zoom: this.state.zoom }}
+                            <Map modules={['control.ZoomControl', 'control.FullscreenControl']}
+                                 state={{ center: [this.state.lat, this.state.lng], zoom: this.state.zoom, controls: ['zoomControl', 'fullscreenControl'] } }
                                  width={'100%'} height={480} >
-                                <FullscreenControl options={{float: "right"}}/>
 
                                 <Placemark geometry={[this.state.lat, this.state.lng]}
                                            properties={{
-                                               iconContent: 'You'
+                                               iconCaption : 'You'
                                            }}
                                            />
                                 {
                                     this.state.isCenterToggled ? (
                                         <>
                                             <Placemark geometry={[0, 0]}
-                                                       properties={{balloonContentHeader: 'Current Location'}}/>
+                                                       properties={{iconCaption : 'Earth Center'}}/>
                                             <GeoObject
                                                 geometry={{
                                                     type: 'LineString',
@@ -158,8 +165,8 @@ class MyMap extends React.Component{
                                                 }}
                                                 options={{
                                                     geodesic: true,
-                                                    strokeWidth: 5,
-                                                    strokeColor: '#F008'
+                                                    strokeWidth: 3,
+                                                    strokeColor: 'rgba(51,51,255,1)'
                                                 }}
                                             />
                                         </>
@@ -170,8 +177,13 @@ class MyMap extends React.Component{
                                 {
                                     this.state.isNearestToggled ? (
                                         <>
-                                            <Placemark geometry={[this.state.nlat, this.state.nlng]}
-                                                       properties={{balloonContentHeader: 'Current Location'}}/>
+                                            <Placemark
+                                                modules={['geoObject.addon.balloon']}
+                                                geometry={[this.state.nlat, this.state.nlng]}
+                                                properties={{
+                                                    iconCaption : 'City Center'
+                                                }}
+                                            />
                                             <GeoObject
                                                 geometry={{
                                                     type: 'LineString',
@@ -182,8 +194,8 @@ class MyMap extends React.Component{
                                                 }}
                                                 options={{
                                                     geodesic: true,
-                                                    strokeWidth: 5,
-                                                    strokeColor: '#F008'
+                                                    strokeWidth: 3,
+                                                    strokeColor: 'rgba(255,0,0,1)'
                                                 }}
                                             />
                                         </>
