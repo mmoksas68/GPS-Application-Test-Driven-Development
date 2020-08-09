@@ -1,21 +1,15 @@
 import React from 'react';
-import MyMap from "./views/Map";
 import './App.css';
+import MyMap from "./views/Map";
 
-class App extends React.Component{
-    constructor(props) {
-        super(props);
-    }
+function App() {
+  return (
+    <div className="App">
+      <MyMap>
 
-    render() {
-        return (
-            <div className="App container">
-                <MyMap></MyMap>
-            </div>
-        );
-    }
-
-
+      </MyMap>
+    </div>
+  );
 }
 
 export default App;

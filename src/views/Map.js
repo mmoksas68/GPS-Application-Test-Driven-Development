@@ -1,217 +1,248 @@
 import React from 'react';
-import '../styles/Map.css'
-import {
-    GeoObject,
-    Map, Placemark,
-    YMaps,
-} from "react-yandex-maps";
-import {nearestCity} from "../utils/APIUtils";
+import {getAltitudeAPI, nearestCityAPI, reverseGeocodeAPI} from "../utils/APIUtils";
+import {GeoObject, Map, Placemark, YMaps} from "react-yandex-maps";
+const earthRadiusAtGeodeticLatitude = require('earth-radius-at-geodetic-latitude');
 
-
-class MyMap extends React.Component{
+class MyMap extends React.Component {
     constructor(props) {
         super(props);
-        this.state = {lat: '', lng: '', nlat: '', nlng: '', isNearestToggled: false, isCenterToggled: false, getLocation: true, zoom: 5};
-        this.getLocation = this.getLocation.bind(this);
-        this.toggleEarthCenter = this.toggleEarthCenter.bind(this);
-        this.toggleNearest = this.toggleNearest.bind(this);
+        this.state = {
+            latInput: '', lngInput: '', enteredCity: '', enteredCityValidation: '', latValidation: '', lngValidation: '',
+            currentLat: '', currentLng: '', currentCity: '', isCurrentLocationActive: false, permissionDenied: '',
+            nearestDistance: '', nearestLat: '', nearestLng: '', zoom: 2, earthCurrentCityDistance: '',
+            earthEnteredCityDistance: ''
+        };
+        this.handleLatChange = this.handleLatChange.bind(this);
+        this.handleLngChange = this.handleLngChange.bind(this);
+        this.handleSendCoordinates = this.handleSendCoordinates.bind(this);
+        this.handleValidation = this.handleValidation.bind(this);
+        this.handleCurrentCoordinates = this.handleCurrentCoordinates.bind(this);
         this.updateNearest = this.updateNearest.bind(this);
-        this.handleChange = this.handleChange.bind(this);
-        this.toggleLocation = this.toggleLocation.bind(this);
+        this.handleEarthDistance = this.handleEarthDistance.bind(this);
     }
 
-    getLocation() {
-        navigator.geolocation.getCurrentPosition((position) => {
-            console.log("Available");
-            console.log("Latitude is :", position.coords.latitude);
-            console.log("Longitude is :", position.coords.longitude);
-            this.setState({lat: position.coords.latitude, lng: position.coords.longitude});
-        }, (error) => {
-            this.setState({lat: '', lng: ''});
-            console.log("Not Available");
-            console.log(error.message);
-        });
-
-        if ("geolocation" in navigator) {
-            console.log("Available");
-        } else {
-            console.log("Not Available");
-        }
+    handleLatChange(event){
+        this.setState({latInput: event.target.value});
     }
 
-    componentDidMount() {
-        this.getLocation();
+    handleLngChange(event){
+        this.setState({lngInput: event.target.value});
     }
 
-    componentWillUnmount() {
-        clearInterval(this.timerID);
-    }
-
-    updateNearest(){
-        const nearest = nearestCity(this.state.lat, this.state.lng);
-        nearest.then((result) => {
-            console.log(result.data[0].latitude + " " + result.data[0].longitude);
-            this.setState({nlat: result.data[0].latitude, nlng: result.data[0].longitude})
+    handleEarthDistance(stateName, lat, lng){
+        this.setState({[stateName]: ''});
+        const distance = getAltitudeAPI(lat, lng);
+        distance.then((result) => {
+            this.setState({[stateName]: Math.round(result.elevations[0].elevation +
+                                                           earthRadiusAtGeodeticLatitude(lat))});
         }).catch((error) => {
             console.log(error);
         });
     }
 
-    toggleNearest(){
-        if (!this.state.isNearestToggled){
-            this.setState({zoom: 10})
-            /*this.timerID = setInterval(
-                () => this.updateNearest(),
-                15000
-            );*/
+    handleSendCoordinates(){
+        const validation = this.handleValidation();
+        if (validation) {
+            reverseGeocodeAPI(this.state.latInput, this.state.lngInput).then((result) => {
+                if (result.principalSubdivision !== undefined && result.principalSubdivision !== '' ){
+                    this.setState({enteredCity: result.principalSubdivision, enteredCityValidation: ''});
+                    this.handleEarthDistance("earthEnteredCityDistance", this.state.latInput, this.state.lngInput);
+                } else{
+                    this.setState({enteredCity: '', enteredCityValidation: 'false'});
+                }
+            });
+        }else
+            this.setState({enteredCity: '', enteredCityValidation: ''});
+    }
+
+    handleCurrentCoordinates(){
+            navigator.geolocation.getCurrentPosition((position) => {
+                this.setState({currentLat: position.coords.latitude, currentLng: position.coords.longitude,
+                                    permissionDenied: ''});
+                reverseGeocodeAPI(position.coords.latitude, position.coords.longitude).then((result) => {
+                    if (result.principalSubdivision !== undefined && result.principalSubdivision !== '' ){
+                        this.setState({currentCity: result.principalSubdivision, isCurrentLocationActive: true});
+                    } else{
+                        this.setState({currentCity: '', isCurrentLocationActive: false});
+                    }
+                }).catch((error) => {
+                    this.setState({currentCity: '', isCurrentLocationActive: false});
+                }).finally(() => {
+                    this.updateNearest();
+                    this.handleEarthDistance("earthCurrentCityDistance", this.state.currentLat, this.state.currentLng);
+                });
+
+            }, (error) => {
+                this.setState({currentLat: '', currentLng: '', currentCity: '', isCurrentLocationActive: false,
+                                    permissionDenied: 'You need to enable locations'});
+                console.log(error.message);
+            });
+    }
+
+    handleValidation(){
+        let isValid = true;
+        if(this.state.latInput !== '' && !isNaN(this.state.latInput) && Math.abs(this.state.latInput) <= 90){
+            this.setState({latValidation: ''});
         }else{
-            this.setState({zoom: 5});
-           // clearInterval(this.timerID);
+            this.setState({latValidation: "Invalid latitude"});
+            isValid = false;
         }
 
-        this.setState(prevState => ({
-            isNearestToggled: !prevState.isNearestToggled
-        }));
-    }
-
-    toggleEarthCenter(){
-        this.setState(prevState => ({
-            isCenterToggled: !prevState.isCenterToggled
-        }));
-    }
-
-    toggleLocation(event){
-        if (!this.state.getLocation){
-            this.getLocation();
+        if(this.state.lngInput !== '' && !isNaN(this.state.lngInput) && Math.abs(this.state.lngInput) <= 180){
+            this.setState({lngValidation: ''});
+        }else{
+            this.setState({lngValidation: "Invalid longitude"});
+            isValid = false;
         }
 
-        this.setState(prevState => ({
-            getLocation: !prevState.getLocation
-        }));
+        return isValid;
     }
 
-    handleChange(event){
-        this.setState({[event.target.name]: event.target.value})
+    updateNearest(){
+        this.setState({zoom: 10});
+        const nearest = nearestCityAPI(this.state.currentLat, this.state.currentLng);
+        nearest.then((results) => {
+            for (let i=0; i < results.data.length; i++){
+                if (results.data[i].region.includes(results.data[i].name) ||
+                    results.data[i].name.includes(results.data[i].region) ){
+                    this.setState({nearestLat: results.data[i].latitude,
+                                        nearestLng: results.data[i].longitude,
+                                        nearestDistance: results.data[i].distance })
+                    break;
+                }
+                if (i === results.data.length-1){
+                    this.setState({nearestLat: results.data[0].latitude,
+                                        nearestLng: results.data[0].longitude,
+                                        nearestDistance: results.data[0].distance })
+                }
+            }
+        }).catch((error) => {
+            this.setState({nearestLat: '', nearestLng: '', nearestDistance: '' });
+            console.log(error);
+        });
     }
 
-    render () {
-
-        return (
-            <div>
-                <div className="row justify-content-start">
-                    <div className="col-lg-4 py-1 custom-switch justify-content-start">
-                        <input type="checkbox" onClick={this.toggleNearest} className="custom-control-input" id="customSwitch1"/>
-                        <label className="custom-control-label" htmlFor="customSwitch1">Show distance to the nearest city</label>
-                    </div>
-                    <div className="col-lg-4 py-1 custom-switch justify-content-start">
-                        <input type="checkbox" onClick={this.toggleEarthCenter} className="custom-control-input" id="customSwitch2"/>
-                        <label className="custom-control-label" htmlFor="customSwitch2">Show distance to the earth center</label>
-                    </div>
-                    <div className="col-lg-4 py-1 custom-switch justify-content-start">
-                        <input type="checkbox" onClick={this.toggleLocation} className="custom-control-input" id="customSwitch3"
-                               name="getLocation" defaultChecked={true}/>
-                        <label className="custom-control-label" htmlFor="customSwitch3">Use Current Location</label>
-                    </div>
-                </div>
-                <hr/>
-                <div className={this.state.getLocation ? "row my-auto d-none": "row my-auto" } >
+    render() {
+        console.log(this.state);
+        return(
+            <div className="container mt-3">
+                <div className="row my-auto">
                     <div className="col-lg-2 my-auto">
-                        <h6 className="">Current Coordinates</h6>
+                        <h4 className="">Enter Coordinates</h4>
                     </div>
-                    <div className="col-lg-5">
+                    <div className="col-lg-4 my-auto">
                         <div className="form-group row">
                             <label htmlFor="example-number-input" className="col-3 col-form-label">Latitude</label>
                             <div className="col-9">
-                                <input className="form-control" type="number" value={this.state.lat} name="lat"
-                                       onChange={this.handleChange} step="0.1" id="example-number-input"/>
+                                <input className={this.state.latValidation === '' ? "form-control" : "form-control is-invalid"} type="number"
+                                       value={this.state.latInput} onChange={this.handleLatChange} step="0.1" id="latInput"/>
+                                <div className="invalid-feedback" id="latitudeValidation">{this.state.latValidation}</div>
                             </div>
                         </div>
                     </div>
-                    <div className="col-lg-5">
+                    <div className="col-lg-4 my-auto">
                         <div className="form-group row">
                             <label htmlFor="example-number-input" className="col-3 col-form-label">Longitude</label>
                             <div className="col-9">
-                                <input className="form-control" type="number" value={this.state.lng} name="lng"
-                                       onChange={this.handleChange} step="0.1" id="example-number-input" />
+                                <input className={this.state.lngValidation === '' ? "form-control" : "form-control is-invalid"} type="number"
+                                       value={this.state.lngInput} onChange={this.handleLngChange} step="0.1" id="lngInput"/>
+                                <div className="invalid-feedback" id="longitudeValidation">{this.state.lngValidation}</div>
                             </div>
                         </div>
                     </div>
+                    <div className="col-lg-2 mt-1">
+                        <button type="button" className="btn btn-primary"  id="sendCoordinateButton"
+                                onClick={this.handleSendCoordinates}>
+                            send coordinates
+                        </button>
+                    </div>
+
                 </div>
                 <hr/>
-                <div className="row">
-                    <div className="col">
-                        <YMaps  query={{ lang: 'en_RU' }}>
-                            <Map modules={['control.ZoomControl', 'control.FullscreenControl']}
-                                 state={{ center: [this.state.lat, this.state.lng], zoom: this.state.zoom, controls: ['zoomControl', 'fullscreenControl'] } }
-                                 width={'100%'} height={480} >
-
-                                <Placemark geometry={[this.state.lat, this.state.lng]}
-                                           properties={{
-                                               iconCaption : 'You'
-                                           }}
-                                           />
-                                {
-                                    this.state.isCenterToggled ? (
-                                        <>
-                                            <Placemark geometry={[0, 0]}
-                                                       properties={{iconCaption : 'Earth Center'}}/>
-                                            <GeoObject
-                                                geometry={{
-                                                    type: 'LineString',
-                                                    coordinates: [
-                                                        [0, 0],
-                                                        [this.state.lat, this.state.lng],
-                                                    ],
-                                                }}
-                                                options={{
-                                                    geodesic: true,
-                                                    strokeWidth: 3,
-                                                    strokeColor: 'rgba(51,51,255,1)'
-                                                }}
-                                            />
-                                        </>
-                                    ) : (
-                                        <span/>
-                                    )
-                                }
-                                {
-                                    this.state.isNearestToggled ? (
-                                        <>
-                                            <Placemark
-                                                modules={['geoObject.addon.balloon']}
-                                                geometry={[this.state.nlat, this.state.nlng]}
-                                                properties={{
-                                                    iconCaption : 'City Center'
-                                                }}
-                                            />
-                                            <GeoObject
-                                                geometry={{
-                                                    type: 'LineString',
-                                                    coordinates: [
-                                                        [this.state.nlat, this.state.nlng],
-                                                        [this.state.lat, this.state.lng],
-                                                    ],
-                                                }}
-                                                options={{
-                                                    geodesic: true,
-                                                    strokeWidth: 3,
-                                                    strokeColor: 'rgba(255,0,0,1)'
-                                                }}
-                                            />
-                                        </>
-                                    ) : (
-                                        <span/>
-                                    )
-                                }
-                                </Map>
-
-                        </YMaps>
-                    </div>
+                <div className={this.state.enteredCity === ''? "d-none" : "row"}>
+                    <h4 className="m-auto w-100" id="enteredCity"> Entered coordinates are in {this.state.enteredCity}</h4>
+                </div>
+                <hr className={this.state.enteredCity === ''? "d-none" : ""}/>
+                <div className={this.state.earthEnteredCityDistance === '' ? "d-none": "row justify-content-center"} id="enteredCityEarthCenterInformation">
+                    <h4 id="earthCenterCurrentLocDistance">
+                        Distance between entered location and the earth center is approximately {this.state.earthEnteredCityDistance} meters
+                    </h4>
+                </div>
+                <hr className={this.state.earthEnteredCityDistance === ''? "d-none" : ""}/>
+                <div className={this.state.enteredCityValidation === ''? "d-none" : "row"}  id="currentCityValidation">
+                    <h4 className="m-auto w-100"> Couldn't find a city with given coordinates</h4>
+                </div>
+                <hr className={this.state.enteredCityValidation === ''? "d-none" : ""}/>
+                <div className={this.state.isCurrentLocationActive ? "row" : "d-none"}>
+                    <h4 id="currentCity" className="col-lg-4 m-auto">Current coordinates are in {this.state.currentCity}</h4>
+                    <h4 id="currentLat" className="col-lg-4 m-auto">Current latitude is {this.state.currentLat}</h4>
+                    <h4 id="currentLng" className="col-lg-4 m-auto">Current Longitude is {this.state.currentLng}</h4>
+                </div>
+                <hr className={this.state.isCurrentLocationActive ? "" : "d-none"}/>
+                <div className={this.state.permissionDenied === '' ? "d-none": "row"}>
+                        <h4 id="permissionDenied">
+                            {this.state.permissionDenied}
+                        </h4>
+                </div>
+                <hr className={this.state.permissionDenied === '' ? "d-none": "row"}/>
+                <div className={this.state.nearestDistance === '' ? "d-none": ""} id="nearestCityInformation">
+                    <h4 className="row justify-content-center" id="nearestDistance">
+                        Approximate distance to the nearest city is {this.state.nearestDistance} kilometers.
+                    </h4>
+                    <h4 className="row justify-content-center" id="nearestLat">Nearest city latitude is {this.state.nearestLat}</h4>
+                    <h4 className="row justify-content-center" id="nearestLng">Nearest city longitude is {this.state.nearestLng}</h4>
+                </div>
+                <hr className={this.state.nearestDistance === '' ? "d-none": "row"}/>
+                <div className={this.state.earthCurrentCityDistance === '' ? "d-none": "row justify-content-center"} id="currentCityEarthCenterInformation">
+                    <h4 id="earthCenterEnteredLocDistance">
+                        Distance between current location and the earth center is approximately {this.state.earthCurrentCityDistance} meters
+                    </h4>
+                </div>
+                <hr className={this.state.earthCurrentCityDistance === '' ? "d-none": ""}/>
+                <div className="row justify-content-end">
+                    <button type="button" className="btn btn-primary mr-3"  id="updateCurrentLocation" onClick={this.handleCurrentCoordinates}>
+                        get current coordinates
+                    </button>
+                </div>
+                <hr/>
+                <div className="row mx-1">
+                    <YMaps  query={{ lang: 'en_RU' }}>
+                        <Map modules={['control.ZoomControl', 'control.FullscreenControl']}
+                             state={{ center: [this.state.currentLat, this.state.currentLng],
+                                       zoom: this.state.zoom, controls: ['zoomControl', 'fullscreenControl'] } }
+                             width={'100%'} height={800}>
+                            {   this.state.enteredCity !== '' ?
+                                <Placemark geometry={[this.state.latInput, this.state.lngInput]}
+                                           properties={{iconCaption : 'entered location'}} /> : <></> }
+                            {   this.state.isCurrentLocationActive  ?
+                                <Placemark geometry={[this.state.currentLat, this.state.currentLng]}
+                                           properties={{iconCaption : 'current location'}}/> : <></> }
+                            {   this.state.nearestDistance !== '' ?
+                                <Placemark geometry={[this.state.nearestLat, this.state.nearestLng]}
+                                           properties={{ iconCaption : 'City Center'}} /> : <></> }
+                            {
+                                this.state.nearestDistance !== '' ?
+                                    <GeoObject
+                                        geometry={{
+                                            type: 'LineString',
+                                            coordinates: [
+                                                [this.state.nearestLat, this.state.nearestLng],
+                                                [this.state.currentLat, this.state.currentLng],
+                                            ],
+                                        }}
+                                        options={{
+                                            geodesic: true,
+                                            strokeWidth: 3,
+                                            strokeColor: 'rgba(255,0,0,1)'
+                                        }}/> : <></>
+                            }
+                        </Map>
+                    </YMaps>
                 </div>
             </div>
-
         );
     }
 }
+
 
 export default MyMap;

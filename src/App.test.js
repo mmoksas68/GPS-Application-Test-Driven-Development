@@ -1,19 +1,9 @@
 import React from 'react';
-import { shallow, mount, render } from 'enzyme';
-import MyMap from "./views/Map";
+import { render } from '@testing-library/react';
+import App from './App';
 
-
-
-describe("test", () => {
-  let wrapper;
-
-  beforeEach(() => {
-    wrapper = mount(<MyMap/>);
-  });
-
-  it('renders bla bla', () => {
-    console.log(wrapper.debug());
-    expect(wrapper.exists("n")).toBe(true);
-  });
-
+test('renders learn react link', () => {
+  const { getByText } = render(<App />);
+  const linkElement = getByText(/learn react/i);
+  expect(linkElement).toBeInTheDocument();
 });
