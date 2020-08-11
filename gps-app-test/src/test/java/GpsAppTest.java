@@ -17,8 +17,7 @@ public class GpsAppTest {
     final String LOCATION_IN_ANKARA_LONGITUDE = "32";
 
     public WebDriver driver;
-    //protected static String url = "https://gps-app-tdd.herokuapp.com/";
-    protected static String url = "http://localhost:3000/";
+    protected static String url = "https://gps-app-tdd.herokuapp.com/";
 
     @Before
     public void setUp() {
