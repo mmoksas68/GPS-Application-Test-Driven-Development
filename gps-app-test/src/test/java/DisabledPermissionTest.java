@@ -22,7 +22,7 @@ public class DisabledPermissionTest {
         driverWithoutPermission.get(url);
 
         driverWithoutPermission.findElement(By.id("updateCurrentLocation")).click();
-        Thread.sleep(1500);
+        Thread.sleep(4000);
 
         Assert.assertEquals(driverWithoutPermission.findElement(By.id("permissionDenied")).getText(),
                       "You need to enable locations");

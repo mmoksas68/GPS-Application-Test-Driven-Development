@@ -13,10 +13,12 @@ import java.util.List;
 import java.util.Map;
 
 public class GpsAppTest {
-
+    final String LOCATION_IN_ANKARA_LATITUDE = "39";
+    final String LOCATION_IN_ANKARA_LONGITUDE = "32";
 
     public WebDriver driver;
-    protected static String url = "https://gps-app-tdd.herokuapp.com/";
+    //protected static String url = "https://gps-app-tdd.herokuapp.com/";
+    protected static String url = "http://localhost:3000/";
 
     @Before
     public void setUp() {
@@ -41,7 +43,7 @@ public class GpsAppTest {
         driver.findElement(By.id("lngInput")).sendKeys(lng);
         driver.findElement(By.id("sendCoordinateButton")).click();
 
-        Thread.sleep(1000);
+        Thread.sleep(4000);
 
         Assert.assertEquals(driver.findElement(By.id("enteredCity")).getText(), "Entered coordinates are in " + city);
     }
@@ -69,7 +71,7 @@ public class GpsAppTest {
         driver.findElement(By.id("lngInput")).clear();
         driver.findElement(By.id("lngInput")).sendKeys(lng);
         driver.findElement(By.id("sendCoordinateButton")).click();
-        Thread.sleep(1000);
+        Thread.sleep(4000);
 
         switch (option)
         {
@@ -89,11 +91,11 @@ public class GpsAppTest {
     @Test
     public void getCurrentLocation() throws InterruptedException {
         driver.findElement(By.id("updateCurrentLocation")).click();
-        Thread.sleep(1500);
-
+        Thread.sleep(4000);
+        // This test will fail if testing device is not in Ankara
         Assert.assertEquals(driver.findElement(By.id("currentCity")).getText(), "Current coordinates are in Ankara");
-        Assert.assertTrue(driver.findElement(By.id("currentLat")).getText().contains("39"));
-        Assert.assertTrue(driver.findElement(By.id("currentLng")).getText().contains("32"));
+        Assert.assertTrue(driver.findElement(By.id("currentLat")).getText().contains(LOCATION_IN_ANKARA_LATITUDE));
+        Assert.assertTrue(driver.findElement(By.id("currentLng")).getText().contains(LOCATION_IN_ANKARA_LONGITUDE));
     }
 
     @Test
@@ -101,7 +103,7 @@ public class GpsAppTest {
         Assert.assertEquals(driver.findElement(By.id("nearestCityInformation")).getAttribute("className"), "d-none");
 
         driver.findElement(By.id("updateCurrentLocation")).click();
-        Thread.sleep(3000);
+        Thread.sleep(4000);
 
         Assert.assertNotEquals(driver.findElement(By.id("nearestCityInformation")).getAttribute("className"), "d-none");
         Assert.assertNotEquals(driver.findElement(By.id("nearestDistance")).getText(), "");
@@ -115,12 +117,12 @@ public class GpsAppTest {
         Assert.assertEquals(driver.findElement(By.id("enteredCityEarthCenterInformation")).getAttribute("className"), "d-none");
 
         driver.findElement(By.id("updateCurrentLocation")).click();
-        Thread.sleep(3000);
+        Thread.sleep(4000);
 
-        driver.findElement(By.id("latInput")).sendKeys("39");
-        driver.findElement(By.id("lngInput")).sendKeys("32");
+        driver.findElement(By.id("latInput")).sendKeys(LOCATION_IN_ANKARA_LATITUDE);
+        driver.findElement(By.id("lngInput")).sendKeys(LOCATION_IN_ANKARA_LONGITUDE);
         driver.findElement(By.id("sendCoordinateButton")).click();
-        Thread.sleep(2000);
+        Thread.sleep(4000);
 
         Assert.assertNotEquals(driver.findElement(By.id("currentCityEarthCenterInformation")).getAttribute("className"), "d-none");
         Assert.assertNotEquals(driver.findElement(By.id("enteredCityEarthCenterInformation")).getAttribute("className"), "d-none");

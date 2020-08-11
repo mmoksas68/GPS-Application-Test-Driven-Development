@@ -103,8 +103,8 @@ class MyMap extends React.Component {
         const nearest = nearestCityAPI(this.state.currentLat, this.state.currentLng);
         nearest.then((results) => {
             for (let i=0; i < results.data.length; i++){
-                if (results.data[i].region.includes(results.data[i].name) ||
-                    results.data[i].name.includes(results.data[i].region) ){
+                if (results.data[i].region.includes(this.state.currentCity) ||
+                    results.data[i].name.includes(this.state.currentCity)){
                     this.setState({nearestLat: results.data[i].latitude,
                                         nearestLng: results.data[i].longitude,
                                         nearestDistance: results.data[i].distance })
