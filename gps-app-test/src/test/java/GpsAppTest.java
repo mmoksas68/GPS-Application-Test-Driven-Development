@@ -20,7 +20,7 @@ public class GpsAppTest {
 
     @Before
     public void setUp() {
-        System.setProperty("webdriver.chrome.driver", "D:\\instagram clone\\gps-app-test\\chromedriver.exe");
+        System.setProperty("webdriver.chrome.driver", "chromedriver.exe");
         driver = new ChromeDriver();
         driver.manage().window().maximize();
         driver.get(url);
